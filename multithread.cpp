@@ -9,21 +9,24 @@ int exitFlag = 0;
 std::mutex queueMutex;
 std::mutex consoleMutex;
 
-void doWork(int threadID, std::string name, std::queue<std::string> &q){
+void doWork(std::string name, std::vector<std::string> &tasks){
     while (!exitFlag){
-        std::string data = "";
+        // get a task off the "queue"
+        std::vector<std::string> myTasks;
         {
-            std::lock_guard<std::mutex> lockMutex(queueMutex);
-            if (!q.empty()){
-                data = q.front();
-                q.pop();
+            std::lock_guard<std::mutex> lk(queueMutex);
+            if (!tasks.empty()){
+                std::string task = tasks.front();
+                tasks.erase(tasks.begin());
+                myTasks.push_back(task);
             }
         }
-        if (data.compare("") != 0){
-            {                   
-                std::lock_guard<std::mutex> consoleLock(consoleMutex); // lock the console
-                std::cout << "name: " << name << " data: " << data << std::endl;
-            } // relesse the console
+        // process my long running task
+        for (std::string& task : myTasks){
+            {
+                std::lock_guard<std::mutex> lk(consoleMutex);
+                std::cout << name << " is working on task: " << task << std::endl;
+            }
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
@@ -37,29 +40,33 @@ int main(){
     std::string nameList[numNames] = {"One", "Two", "Three", "Four", "Five"};
     
     std::vector<std::thread> threads;
-    std::queue<std::string> workQueue;
+    std::vector<std::string> tasks;
     
+    // Create new threads
     for (int i=0; i<numThreads; i++){
         std::string currName = threadList[i];
-        int threadID = i+1;
-        threads.emplace_back(doWork, threadID, currName, std::ref(workQueue));
+        threads.emplace_back(doWork, currName, std::ref(tasks));
     }
 
+    // Fill the queue
     {
         std::lock_guard<std::mutex> queueLock(queueMutex); //lock queue
         for (int i=0; i<numNames; i++){
             std::string currString = nameList[i];
-            workQueue.push(currString);
+            tasks.push_back(currString);
         }
     } // release queue
-       
-    while (!workQueue.empty()){}
+    
+     
+    // Wait for queue to empty
+    while (!tasks.empty()){}
+    
+    // Notify threads it's time to exit
     exitFlag = 1;
  
-    //for (auto& thread : threads){
+    // Wait for all threads to complete
     for (std::thread& thread : threads){
         thread.join();
     }
-    
     std::cout <<  "Exiting Main Thread" << std::endl;
 }
