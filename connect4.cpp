@@ -69,16 +69,50 @@ class BoardWidget{
         }
     }
     
-    void drop(std::string color, int column){
+    int drop(std::string color, int column){
         BoardCmds cmds;
         int bottom = 7;
-        for (int r=0; r<8; r++){
+        int r;
+        for (r=0; r<8; r++){
             if (!cmds.isCommand(board.grid[bottom-r][column-1])){
                 board.grid[bottom-r][column-1] = color + std::to_string(column);
                 //board.grid[bottom-r][column-1] = color + color;
                 break;
             }
         }
+        return bottom-r+1;
+    }
+    
+    int sum(std::string color, int row, int column, int rise, int run){
+        std::cout << "sum("<< color << ", " <<  row << ", " << column << ", " <<  rise << ", " << run << ")" << std::endl;
+
+        BoardCmds cmds;
+        int stopRise = 0;
+        int stopRun = 0;
+        int retval = 0;
+        int r=row; 
+        int c=column;
+        while(1){
+            std::cout << "log: " <<  r << " " << c << " " <<  this->board.grid[r-1][c-1] << std::endl;
+            r=r+rise;
+            if (r>8 || r<1){
+                break;
+            }
+            c=c+run;
+            if (c>8 || c<1){
+                break;
+            }            
+
+            std::string test = this->board.grid[r-1][c-1];
+            std::cout << "log: " <<  r << " " << c << " " << test << std::endl;
+            std::cout << "log: " <<  cmds.getColor(test) << " == " << color << std::endl;
+            if (cmds.getColor(test).compare(color) == 0){
+                retval++;
+            }else{
+                break;
+            }
+        }
+        return retval;
     }
 };
 
@@ -107,7 +141,11 @@ int main(){
                 std::string color = cmds.getColor(usrInput);
                 int column = cmds.getColumn(usrInput);
                 //std::cout << color << column << std::endl;
-                widget.drop(color, column);
+                int row = widget.drop(color, column);
+                int rt = widget.sum(color, row, column, 0, 1);
+                int lt = widget.sum(color, row, column, 0, -1);
+                std::cout << "isConnect4: " <<  rt << " + " << lt << std::endl;
+
             }            
         }else{
             std::cout << "Valid commands: 'exit', 'r<1-8>', 'b<1-8>'" << std::endl;
